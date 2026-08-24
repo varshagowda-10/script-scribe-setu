@@ -19,11 +19,11 @@ export async function readCached(imageHash: string): Promise<TranslationResult |
       confidence: data.confidence === null ? null : Number(data.confidence),
       confidenceBasis: (data.confidence_basis ??
         "unavailable") as TranslationResult["confidenceBasis"],
-      glossary: (data.glossary ?? []) as TranslationResult["glossary"],
-      notes: (data.notes ?? []) as string[],
+      glossary: (data.glossary ?? []) as unknown as TranslationResult["glossary"],
+      notes: (data.notes ?? []) as unknown as string[],
       ocrEngine: data.ocr_engine ?? "unknown",
       rawOcr: data.raw_ocr ?? "",
-      stats: (data.stats ?? {}) as TranslationResult["stats"],
+      stats: (data.stats ?? {}) as unknown as TranslationResult["stats"],
       cached: true,
     };
   } catch (err) {
@@ -45,9 +45,9 @@ export async function writeCached(imageHash: string, result: TranslationResult):
         confidence_basis: result.confidenceBasis,
         ocr_engine: result.ocrEngine,
         raw_ocr: result.rawOcr,
-        glossary: result.glossary,
-        notes: result.notes,
-        stats: result.stats,
+        glossary: result.glossary as unknown as never,
+        notes: result.notes as unknown as never,
+        stats: result.stats as unknown as never,
       },
       { onConflict: "image_hash" },
     );
