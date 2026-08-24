@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      manuscript_results: {
+        Row: {
+          confidence: number | null
+          confidence_basis: string | null
+          created_at: string
+          english: string
+          glossary: Json
+          hale_kannada: string
+          hosa_kannada: string
+          image_hash: string
+          notes: Json
+          ocr_engine: string | null
+          raw_ocr: string | null
+          stats: Json
+        }
+        Insert: {
+          confidence?: number | null
+          confidence_basis?: string | null
+          created_at?: string
+          english: string
+          glossary?: Json
+          hale_kannada: string
+          hosa_kannada: string
+          image_hash: string
+          notes?: Json
+          ocr_engine?: string | null
+          raw_ocr?: string | null
+          stats?: Json
+        }
+        Update: {
+          confidence?: number | null
+          confidence_basis?: string | null
+          created_at?: string
+          english?: string
+          glossary?: Json
+          hale_kannada?: string
+          hosa_kannada?: string
+          image_hash?: string
+          notes?: Json
+          ocr_engine?: string | null
+          raw_ocr?: string | null
+          stats?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
