@@ -109,7 +109,6 @@ function clahe(
       let count = 0;
       for (let y = ty * th; y < Math.min((ty + 1) * th, height); y++) {
         for (let x = tx * tw; x < Math.min((tx + 1) * tw, width); x++) {
-          hist[gray[y * width + x]!]! + 0;
           hist[gray[y * width + x]!] = (hist[gray[y * width + x]!] ?? 0) + 1;
           count++;
         }
