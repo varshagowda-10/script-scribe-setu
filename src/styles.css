@@ -2,6 +2,12 @@
 @source "../src";
 @import "tw-animate-css";
 
+@theme {
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+  --font-kannada: "Noto Sans Kannada", "Karla", sans-serif;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /*
@@ -62,26 +68,28 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --radius: 0.5rem;
+  --background: oklch(0.968 0.018 88);
+  --foreground: oklch(0.26 0.035 55);
+  --card: oklch(0.985 0.012 90);
+  --card-foreground: oklch(0.26 0.035 55);
+  --popover: oklch(0.985 0.012 90);
+  --popover-foreground: oklch(0.26 0.035 55);
+  --primary: oklch(0.42 0.09 45);
+  --primary-foreground: oklch(0.975 0.015 88);
+  --secondary: oklch(0.92 0.03 85);
+  --secondary-foreground: oklch(0.32 0.05 50);
+  --muted: oklch(0.93 0.022 85);
+  --muted-foreground: oklch(0.5 0.03 60);
+  --accent: oklch(0.62 0.13 60);
+  --accent-foreground: oklch(0.98 0.012 90);
+  --destructive: oklch(0.52 0.19 27);
+  --destructive-foreground: oklch(0.98 0.01 90);
+  --border: oklch(0.87 0.028 82);
+  --input: oklch(0.87 0.028 82);
+  --ring: oklch(0.62 0.13 60);
+  --leaf: oklch(0.9 0.045 82);
+  --ink: oklch(0.3 0.04 50);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -132,6 +140,11 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+@theme inline {
+  --color-leaf: var(--leaf);
+  --color-ink: var(--ink);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -140,5 +153,27 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    background-image:
+      radial-gradient(circle at 12% 8%, oklch(0.93 0.05 80 / 0.7), transparent 45%),
+      radial-gradient(circle at 88% 92%, oklch(0.9 0.05 60 / 0.5), transparent 50%);
+    background-attachment: fixed;
   }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+  }
+}
+
+@utility font-kannada {
+  font-family: var(--font-kannada);
+  line-height: 2;
+}
+
+@utility panel {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px oklch(0.4 0.05 60 / 0.06), 0 12px 32px oklch(0.4 0.05 60 / 0.07);
 }
