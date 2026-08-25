@@ -23,9 +23,23 @@ export async function runTesseractKannada(
   onProgress?: (p: number) => void,
 ): Promise<OCRResult> {
   const worker = await getWorker(onProgress);
-  const { data } = await worker.recognize(imageDataUrl);
+  const { data } = await worker.recognize(imageDataUrl, {}, { blocks: true, text: true });
+  const page = data as unknown as {
+    text?: string;
+    confidence?: number;
+    words?: { text: string; confidence: number }[];
+    blocks?: {
+      paragraphs?: { lines?: { words?: { text: string; confidence: number }[] }[] }[];
+    }[];
+  };
 
-  const words = (data.words ?? []).map((w) => ({
+  const flattened =
+    page.words ??
+    (page.blocks ?? []).flatMap((b) =>
+      (b.paragraphs ?? []).flatMap((par) => (par.lines ?? []).flatMap((l) => l.words ?? [])),
+    );
+
+  const words = flattened.map((w) => ({
     text: w.text,
     confidence: typeof w.confidence === "number" ? w.confidence : 0,
   }));
@@ -34,12 +48,12 @@ export async function runTesseractKannada(
   const scored = words.filter((w) => /[\u0C80-\u0CFF]/.test(w.text));
   const confidence = scored.length
     ? scored.reduce((s, w) => s + w.confidence, 0) / scored.length
-    : typeof data.confidence === "number" && data.text.trim()
-      ? data.confidence
+    : typeof page.confidence === "number" && (page.text ?? "").trim()
+      ? page.confidence
       : null;
 
   return {
-    text: data.text ?? "",
+    text: page.text ?? "",
     confidence,
     words,
     engine: "tesseract-kan",
