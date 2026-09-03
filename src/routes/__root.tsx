@@ -125,13 +125,49 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+const NAV = [
+  { to: "/", label: "Home" },
+  { to: "/translate", label: "Translate" },
+  { to: "/history", label: "History" },
+  { to: "/about", label: "About" },
+] as const;
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="flex min-h-screen flex-col">
+        <header className="border-b border-border bg-card/70 backdrop-blur">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+            <Link to="/" className="font-display text-2xl leading-none tracking-tight">
+              AksharaSetu
+            </Link>
+            <nav className="flex items-center gap-1 text-sm">
+              {NAV.map((n) => (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  activeOptions={{ exact: n.to === "/" }}
+                  className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground [&.active]:bg-secondary [&.active]:text-foreground"
+                >
+                  {n.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </header>
+
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <main className="flex-1">
+          <Outlet />
+        </main>
+
+        <footer className="border-t border-border px-4 py-6 text-center text-xs text-muted-foreground sm:px-6">
+          AksharaSetu — reading historical Kannada manuscripts in modern Kannada and English.
+        </footer>
+      </div>
     </QueryClientProvider>
   );
 }
+
