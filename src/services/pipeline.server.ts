@@ -119,6 +119,19 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     stats: { ...report.stats, aiAssisted: true },
     cached: false,
   };
+/**
+ * Deterministic presentation cleanup: internal uncertainty markers become a
+ * neutral ellipsis so readers never see debug tokens.
+ */
+function presentable(text: string): string {
+  return (text ?? "")
+    .replace(/\[(?:uncertain|not found|unknown|illegible)\]/gi, "…")
+    .replace(/◌+/g, "…")
+    .replace(/(?:\s*…\s*){2,}/g, " … ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 
 
   await writeCached(input.imageHash, result);
