@@ -1,16 +1,8 @@
 # AksharaSetu roadmap
 
-## In progress — user-facing refinement
-- [x] Load full ~19,975-entry Hale→Hosa lexicon into the bundled dataset
-- [ ] Simple navigation: Home / Translate / History / About (no Dataset)
-- [ ] Home page: clear purpose + "Start Translation"
-- [ ] Translate page: upload → preview → Translate (no technical controls)
-- [ ] Result page: manuscript, Hale, Hosa, English, audio, PDF, word meanings
-- [ ] Remove technical UI (pipeline steps, confidence %, engine, stats, notes)
-- [ ] History (thumbnail, date, preview, reopen, PDF)
-- [ ] About page
-- [ ] Recovery quality: fewer "[not found]", dataset-grounded correction
-- [ ] Determinism: same image → same result (temp 0 + seed + cache)
-
-## Requested next
-- [ ] Admin-only page to upload the full Hale→Hosa CSV and reindex it for matching
+- [x] Load full ~19,975-entry Hale→Hosa lexicon
+- [x] Home / Translate / History / About navigation; project-presentation text removed
+- [x] Clean result view (manuscript, Hale, Hosa, English, glossary meanings, audio, PDF)
+- [x] localStorage history with thumbnails and reopen
+- [x] Recovery-quality prompt tightening + deterministic uncertainty cleanup
+- [ ] Admin-only CSV upload + reindex page (DB-backed lexicon)

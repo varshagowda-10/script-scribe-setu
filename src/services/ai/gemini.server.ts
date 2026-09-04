@@ -101,7 +101,10 @@ export async function reconstructAndTranslate(params: {
         "1. Reconstruct the most plausible Hale Kannada text. Prefer dataset-supported candidates and surrounding context over the raw OCR token. Correct obvious OCR character substitutions, wrong splits and wrong joins.",
         "2. Convert that Hale Kannada into fluent modern Hosa Kannada.",
         "3. Translate the Hosa Kannada into natural, coherent English prose (not a word list).",
-        "Rules: never invent content that has no support in the OCR, the dataset candidates, or the immediate context. If a word truly cannot be recovered, write [uncertain] for that word ONLY — never for whole lines. Keep [uncertain] rare. Do not output internal debug markers.",
+        "Rules: never invent content that has no support in the OCR, the dataset candidates, or the immediate context. If a word truly cannot be recovered, write [uncertain] for that word ONLY — never for whole lines. Keep [uncertain] rare.",
+        "Always produce a readable Hosa Kannada rendering and a readable English translation of whatever was recovered; do not return empty strings and do not answer with an apology or an explanation of failure. If only part of the passage is legible, translate that part and simply omit the illegible word.",
+        "Do not output internal debug markers, confidence scores, dataset statistics, or commentary about the OCR process.",
+
         'Reply with strict JSON only: {"haleKannada":string,"hosaKannada":string,"english":string,"glossary":[{"hale":string,"hosa":string,"english":string,"note":string}],"notes":[string],"uncertainTokens":[string]}',
         "glossary: up to 12 of the most meaningful words actually present in the passage. notes: up to 4 short scholarly remarks about the reconstruction.",
       ].join("\n"),

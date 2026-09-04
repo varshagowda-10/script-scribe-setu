@@ -107,9 +107,9 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     notes.push(`Unresolved readings: ${ai.uncertainTokens.slice(0, 8).join(", ")}`);
 
   const result: TranslationResult = {
-    haleKannada: ai.haleKannada || report.cleanedText,
-    hosaKannada: ai.hosaKannada,
-    english: ai.english,
+    haleKannada: presentable(ai.haleKannada || report.cleanedText),
+    hosaKannada: presentable(ai.hosaKannada),
+    english: presentable(ai.english),
     confidence: conf.value,
     confidenceBasis: conf.basis,
     glossary,
@@ -119,6 +119,20 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     stats: { ...report.stats, aiAssisted: true },
     cached: false,
   };
+/**
+ * Deterministic presentation cleanup: internal uncertainty markers become a
+ * neutral ellipsis so readers never see debug tokens.
+ */
+function presentable(text: string): string {
+  return (text ?? "")
+    .replace(/\[(?:uncertain|not found|unknown|illegible)\]/gi, "…")
+    .replace(/◌+/g, "…")
+    .replace(/(?:\s*…\s*){2,}/g, " … ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+
 
   await writeCached(input.imageHash, result);
   return result;

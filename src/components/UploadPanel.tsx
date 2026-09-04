@@ -115,7 +115,7 @@ export function UploadPanel({
           ) : (
             <ScanText className="mr-2 h-4 w-4" />
           )}
-          {busy ? "Processing…" : "Process manuscript"}
+          {busy ? "Translating…" : "Translate"}
         </Button>
         {previewUrl && !busy && (
           <Button variant="outline" onClick={() => inputRef.current?.click()}>
