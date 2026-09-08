@@ -68,13 +68,17 @@ function bigramsOf(s: string): string[] {
   return grams.length ? grams : s ? [s] : [];
 }
 
-function buildIndex(): DatasetIndex {
+function buildIndex(override?: DatasetEntry[]): DatasetIndex {
   let entries: DatasetEntry[] = [];
-  try {
-    entries = parseCsv(rawCsv);
-  } catch (err) {
-    console.error("[AksharaSetu] Dataset parse failed:", err);
-    entries = [];
+  if (override && override.length) {
+    entries = override;
+  } else {
+    try {
+      entries = parseCsv(rawCsv);
+    } catch (err) {
+      console.error("[AksharaSetu] Dataset parse failed:", err);
+      entries = [];
+    }
   }
   const exact = new Map<string, DatasetEntry>();
   const normalized = new Map<string, DatasetEntry>();
