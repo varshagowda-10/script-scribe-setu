@@ -6,3 +6,4 @@
 - [x] localStorage history with thumbnails and reopen
 - [x] Recovery-quality prompt tightening + deterministic uncertainty cleanup
 - [ ] Admin-only CSV upload + reindex page (DB-backed lexicon)
+- [ ] Provide complete project as downloadable zip
