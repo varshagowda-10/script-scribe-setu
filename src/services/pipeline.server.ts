@@ -119,6 +119,11 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     stats: { ...report.stats, aiAssisted: true },
     cached: false,
   };
+
+  await writeCached(input.imageHash, result);
+  return result;
+}
+
 /**
  * Deterministic presentation cleanup: internal uncertainty markers become a
  * neutral ellipsis so readers never see debug tokens.
@@ -130,12 +135,6 @@ function presentable(text: string): string {
     .replace(/(?:\s*…\s*){2,}/g, " … ")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
-}
-
-
-
-  await writeCached(input.imageHash, result);
-  return result;
 }
 
 function measuredOrEstimated(
