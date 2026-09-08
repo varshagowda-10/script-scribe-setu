@@ -6,6 +6,7 @@ import { readCached, writeCached } from "./cache/cache.server";
 import { reconstruct, buildEvidence } from "./reconstruction/reconstruct.server";
 import { visionReadKannada, reconstructAndTranslate, AIUnavailableError } from "./ai/gemini.server";
 import { cleanOcrText, kannadaCharCount } from "./dataset/normalize";
+import { ensureLexiconLoaded } from "./dataset/dataset.server";
 import type { TranslationResult } from "@/types/aksharasetu";
 
 export class PipelineError extends Error {}
