@@ -24,6 +24,8 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
   const cached = await readCached(input.imageHash);
   if (cached) return cached;
 
+  await ensureLexiconLoaded();
+
   const tesseractText = cleanOcrText(input.ocrText ?? "");
   const tesseractChars = kannadaCharCount(tesseractText);
   console.log(
