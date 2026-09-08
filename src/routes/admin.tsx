@@ -21,7 +21,7 @@ export const Route = createFileRoute("/admin")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: AdminPage;
+  component: AdminPage,
 });
 
 function AdminPage() {
