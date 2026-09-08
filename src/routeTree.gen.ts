@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as TranslateRouteImport } from './routes/translate'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -38,12 +44,14 @@ const TranslateRoute = TranslateRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/history': typeof HistoryRoute
   '/translate': typeof TranslateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/history': typeof HistoryRoute
   '/translate': typeof TranslateRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/history': typeof HistoryRoute
   '/translate': typeof TranslateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/history' | '/translate'
+  fullPaths: '/' | '/about' | '/admin' | '/history' | '/translate'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/history' | '/translate'
-  id: '__root__' | '/' | '/about' | '/history' | '/translate'
+  to: '/' | '/about' | '/admin' | '/history' | '/translate'
+  id: '__root__' | '/' | '/about' | '/admin' | '/history' | '/translate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRoute
   HistoryRoute: typeof HistoryRoute
   TranslateRoute: typeof TranslateRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRoute,
   HistoryRoute: HistoryRoute,
   TranslateRoute: TranslateRoute,
 }

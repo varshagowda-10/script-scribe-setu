@@ -6,6 +6,7 @@ import { readCached, writeCached } from "./cache/cache.server";
 import { reconstruct, buildEvidence } from "./reconstruction/reconstruct.server";
 import { visionReadKannada, reconstructAndTranslate, AIUnavailableError } from "./ai/gemini.server";
 import { cleanOcrText, kannadaCharCount } from "./dataset/normalize";
+import { ensureLexiconLoaded } from "./dataset/dataset.server";
 import type { TranslationResult } from "@/types/aksharasetu";
 
 export class PipelineError extends Error {}
@@ -23,6 +24,8 @@ const MIN_CHARS = 20;
 export async function runPipeline(input: PipelineInput): Promise<TranslationResult> {
   const cached = await readCached(input.imageHash);
   if (cached) return cached;
+
+  await ensureLexiconLoaded();
 
   const tesseractText = cleanOcrText(input.ocrText ?? "");
   const tesseractChars = kannadaCharCount(tesseractText);
@@ -119,6 +122,11 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     stats: { ...report.stats, aiAssisted: true },
     cached: false,
   };
+
+  await writeCached(input.imageHash, result);
+  return result;
+}
+
 /**
  * Deterministic presentation cleanup: internal uncertainty markers become a
  * neutral ellipsis so readers never see debug tokens.
@@ -130,12 +138,6 @@ function presentable(text: string): string {
     .replace(/(?:\s*…\s*){2,}/g, " … ")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
-}
-
-
-
-  await writeCached(input.imageHash, result);
-  return result;
 }
 
 function measuredOrEstimated(

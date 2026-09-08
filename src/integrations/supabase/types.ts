@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      lexicon_entries: {
+        Row: {
+          created_at: string
+          hale: string
+          hosa: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          hale: string
+          hosa: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          hale?: string
+          hosa?: string
+          id?: number
+        }
+        Relationships: []
+      }
       manuscript_results: {
         Row: {
           confidence: number | null

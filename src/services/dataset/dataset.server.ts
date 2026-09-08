@@ -68,13 +68,17 @@ function bigramsOf(s: string): string[] {
   return grams.length ? grams : s ? [s] : [];
 }
 
-function buildIndex(): DatasetIndex {
+function buildIndex(override?: DatasetEntry[]): DatasetIndex {
   let entries: DatasetEntry[] = [];
-  try {
-    entries = parseCsv(rawCsv);
-  } catch (err) {
-    console.error("[AksharaSetu] Dataset parse failed:", err);
-    entries = [];
+  if (override && override.length) {
+    entries = override;
+  } else {
+    try {
+      entries = parseCsv(rawCsv);
+    } catch (err) {
+      console.error("[AksharaSetu] Dataset parse failed:", err);
+      entries = [];
+    }
   }
   const exact = new Map<string, DatasetEntry>();
   const normalized = new Map<string, DatasetEntry>();
@@ -96,6 +100,50 @@ let index: DatasetIndex | null = null;
 function getIndex(): DatasetIndex {
   if (!index) index = buildIndex();
   return index;
+}
+
+const DB_TTL_MS = 5 * 60 * 1000;
+let dbCheckedAt = 0;
+
+/** Replace the in-memory index with an uploaded lexicon. */
+export function setLexicon(entries: DatasetEntry[]): number {
+  index = buildIndex(entries);
+  dbCheckedAt = Date.now();
+  return index.entries.length;
+}
+
+/**
+ * Load the uploaded lexicon from the database (if any) and index it. Falls back
+ * silently to the bundled CSV when the table is empty or unreachable.
+ */
+export async function ensureLexiconLoaded(force = false): Promise<number> {
+  if (!force && Date.now() - dbCheckedAt < DB_TTL_MS && index) return index.entries.length;
+  dbCheckedAt = Date.now();
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rows: DatasetEntry[] = [];
+    const page = 1000;
+    for (let from = 0; ; from += page) {
+      const { data, error } = await supabaseAdmin
+        .from("lexicon_entries")
+        .select("hale,hosa")
+        .order("id", { ascending: true })
+        .range(from, from + page - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const r of data) {
+        if (r.hale && r.hosa) rows.push({ hale: r.hale, hosa: r.hosa, key: normalizeKannada(r.hale) });
+      }
+      if (data.length < page) break;
+    }
+    if (rows.length) {
+      index = buildIndex(rows);
+      console.log(`[AksharaSetu] Lexicon loaded from database: ${rows.length} entries`);
+    }
+  } catch (err) {
+    console.error("[AksharaSetu] Lexicon database load skipped:", err);
+  }
+  return getIndex().entries.length;
 }
 
 export function datasetSize(): number {
