@@ -1,12 +1,19 @@
 /**
  * The single AksharaSetu pipeline:
- * image -> (client OCR) -> reconstruction -> dataset/AI assistance -> Hosa -> English -> cache.
+ * image -> (multi-pass OCR) -> consensus reading -> learned corrections ->
+ * dataset/AI reconstruction -> Hosa -> English -> cache.
  */
 import { readCached, writeCached } from "./cache/cache.server";
 import { reconstruct, buildEvidence } from "./reconstruction/reconstruct.server";
-import { visionReadKannada, reconstructAndTranslate, AIUnavailableError } from "./ai/gemini.server";
+import {
+  visionReadKannada,
+  consensusRead,
+  reconstructAndTranslate,
+  AIUnavailableError,
+} from "./ai/gemini.server";
 import { cleanOcrText, kannadaCharCount } from "./dataset/normalize";
 import { ensureLexiconLoaded } from "./dataset/dataset.server";
+import { applyCorrections } from "./corrections/corrections.server";
 import type { TranslationResult } from "@/types/aksharasetu";
 
 export class PipelineError extends Error {}
@@ -16,6 +23,10 @@ export interface PipelineInput {
   imageDataUrl: string;
   ocrText: string;
   ocrConfidence: number | null;
+  /** Readings of the other renderings of the same leaf. */
+  ocrCandidates?: { label: string; text: string; confidence: number | null }[];
+  /** Alternative renderings handed to the image-reading model. */
+  imageVariants?: string[];
 }
 
 const LOW_CONFIDENCE = 70;
@@ -35,6 +46,8 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     }`,
   );
 
+  const images = [input.imageDataUrl, ...(input.imageVariants ?? [])].filter(Boolean).slice(0, 2);
+
   const weak =
     tesseractChars < MIN_CHARS ||
     input.ocrConfidence === null ||
@@ -44,18 +57,57 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
   let engine: string = "tesseract-kan";
   let visionUsed = false;
 
+  // Independent readings of the same leaf: each pre-processed rendering read by
+  // Tesseract, plus one image-grounded reading per rendering when the scan is
+  // faded or the characters run together.
+  const passes: { label: string; text: string }[] = [];
+  if (tesseractText.trim()) passes.push({ label: "scan-balanced", text: tesseractText });
+  for (const c of input.ocrCandidates ?? []) {
+    const cleaned = cleanOcrText(c.text ?? "");
+    if (kannadaCharCount(cleaned) >= 3) passes.push({ label: `scan-${c.label}`, text: cleaned });
+  }
+
   if (weak) {
-    try {
-      const visionText = await visionReadKannada(input.imageDataUrl, tesseractText);
-      if (kannadaCharCount(visionText) >= Math.max(tesseractChars, 4)) {
-        workingText = cleanOcrText(visionText);
-        visionUsed = true;
-        engine = tesseractChars > 0 ? "tesseract-kan + vision" : "vision-assisted";
+    for (const [i, image] of images.entries()) {
+      try {
+        const visionText = await visionReadKannada(image, tesseractText);
+        if (kannadaCharCount(visionText) >= 3) {
+          passes.push({ label: `image-read-${i + 1}`, text: cleanOcrText(visionText) });
+          visionUsed = true;
+        }
+      } catch (err) {
+        console.error("[AksharaSetu] Vision OCR unavailable:", err);
+        break;
       }
-    } catch (err) {
-      console.error("[AksharaSetu] Vision OCR unavailable:", err);
     }
   }
+
+  if (passes.length > 1) {
+    try {
+      const merged = await consensusRead(images, passes);
+      if (kannadaCharCount(merged) >= Math.max(3, Math.round(tesseractChars * 0.6))) {
+        workingText = cleanOcrText(merged);
+        engine = visionUsed ? "multi-pass + image-grounded" : "multi-pass scan";
+      }
+    } catch (err) {
+      console.error("[AksharaSetu] Consensus reading unavailable:", err);
+    }
+  }
+
+  if (workingText === tesseractText) {
+    // No consensus available — take the single richest pass.
+    const best = passes
+      .slice()
+      .sort((a, b) => kannadaCharCount(b.text) - kannadaCharCount(a.text))[0];
+    if (best && kannadaCharCount(best.text) > tesseractChars) {
+      workingText = best.text;
+      engine = best.label.startsWith("image") ? "image-grounded" : "multi-pass scan";
+    }
+  }
+
+  // Reader-taught corrections are applied before any matching or translation.
+  const corrected = await applyCorrections(workingText);
+  workingText = corrected.text;
 
   if (kannadaCharCount(workingText) < 3) {
     throw new PipelineError(
@@ -65,6 +117,7 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
 
   const report = reconstruct(workingText);
   const evidence = buildEvidence(report);
+
 
   let ai;
   try {
