@@ -60,7 +60,7 @@ export async function visionReadKannada(
     {
       role: "system",
       content:
-        "You transcribe historical Kannada palm-leaf manuscripts. Output ONLY the Kannada characters you can actually read, preserving line breaks. Do not translate, do not modernise, do not add commentary. If a character is unreadable write ◌ in its place. Never invent words to fill gaps.",
+        "You transcribe historical Kannada palm-leaf manuscripts. The leaves are often faded, stained, and the characters frequently touch or run together. Separate joined characters carefully and read faint strokes from the surrounding shape. Output ONLY the Kannada characters you can actually read, preserving line breaks. Do not translate, do not modernise, do not add commentary. If a character is unreadable write ◌ in its place. Never invent words to fill gaps.",
     },
     {
       role: "user",
@@ -76,6 +76,50 @@ export async function visionReadKannada(
   console.log("[AksharaSetu] Vision-assisted OCR completed");
   return content.trim();
 }
+
+/**
+ * Cross-check several renderings of the same leaf and several independent
+ * readings of it, and settle on the single most likely line of characters.
+ */
+export async function consensusRead(
+  imageDataUrls: string[],
+  readings: { label: string; text: string }[],
+): Promise<string> {
+  const usable = readings.filter((r) => r.text.trim());
+  if (!usable.length) return "";
+  if (usable.length === 1 && imageDataUrls.length <= 1) return usable[0]!.text;
+
+  console.log(`[AksharaSetu] Consensus reading over ${usable.length} pass(es)`);
+  const content = await chat([
+    {
+      role: "system",
+      content: [
+        "You are a Kannada palaeographer resolving several independent readings of ONE palm-leaf manuscript image.",
+        "The images attached are different renderings (contrast, thresholding, sharpening) of the same leaf.",
+        "Decide, character by character, the single most likely Kannada text. Where readings disagree, prefer the one the image actually supports; a reading that appears in more than one pass is usually right.",
+        "Faded strokes and characters that run together must be resolved from the image, not guessed from language expectation.",
+        "Output ONLY the resulting Kannada characters, preserving line breaks. No commentary, no translation, no markers other than ◌ for a character that genuinely cannot be read.",
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: usable
+            .map((r, i) => `READING ${i + 1} (${r.label}):\n${r.text.slice(0, 2000)}`)
+            .join("\n\n"),
+        },
+        ...imageDataUrls.slice(0, 2).map((url) => ({
+          type: "image_url" as const,
+          image_url: { url },
+        })),
+      ],
+    },
+  ]);
+  return content.trim();
+}
+
 
 export interface AITranslationOutput {
   haleKannada: string;
