@@ -7,8 +7,26 @@ const inputSchema = z.object({
   imageDataUrl: z.string().startsWith("data:image/"),
   ocrText: z.string(),
   ocrConfidence: z.number().nullable(),
+  ocrCandidates: z
+    .array(
+      z.object({
+        label: z.string(),
+        text: z.string(),
+        confidence: z.number().nullable(),
+      }),
+    )
+    .max(4)
+    .optional(),
+  imageVariants: z.array(z.string().startsWith("data:image/")).max(2).optional(),
 });
 
 export const processManuscript = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
-  .handler(async ({ data }) => runPipeline(data));
+  .handler(async ({ data }) =>
+    runPipeline({
+      ...data,
+      ocrCandidates: data.ocrCandidates ?? [],
+      imageVariants: data.imageVariants ?? [],
+    }),
+  );
+

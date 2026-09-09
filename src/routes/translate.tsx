@@ -97,14 +97,31 @@ function TranslatePage() {
       setProgress(0.12);
       let ocrText = "";
       let ocrConfidence: number | null = null;
-      try {
-        const ocr = await runTesseractKannada(processed.ocrDataUrl, (p) =>
-          setProgress(0.15 + p * 0.5),
-        );
-        ocrText = ocr.text;
-        ocrConfidence = ocr.confidence;
-      } catch (err) {
-        console.error("Primary reading pass failed; continuing with assisted reading", err);
+      const candidates: { label: string; text: string; confidence: number | null }[] = [];
+
+      // Read every rendering of the leaf; faded ink and joined characters show
+      // up in different passes.
+      const variants = processed.ocrVariants.length
+        ? processed.ocrVariants
+        : [{ label: "balanced", dataUrl: processed.ocrDataUrl }];
+      for (const [i, variant] of variants.entries()) {
+        try {
+          const ocr = await runTesseractKannada(variant.dataUrl, (p) =>
+            setProgress(0.15 + ((i + p) / variants.length) * 0.5),
+          );
+          if (i === 0) {
+            ocrText = ocr.text;
+            ocrConfidence = ocr.confidence;
+          } else {
+            candidates.push({
+              label: variant.label,
+              text: ocr.text,
+              confidence: ocr.confidence,
+            });
+          }
+        } catch (err) {
+          console.error(`Reading pass ${variant.label} failed`, err);
+        }
       }
 
       setStage("Translating…");
@@ -115,8 +132,11 @@ function TranslatePage() {
           imageDataUrl: processed.enhancedDataUrl,
           ocrText,
           ocrConfidence,
+          ocrCandidates: candidates,
+          imageVariants: processed.visionVariants.slice(1, 2),
         },
       });
+
 
       setProgress(1);
       setResult(res);
