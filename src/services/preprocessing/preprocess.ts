@@ -18,6 +18,14 @@ export interface PreprocessOutput {
   ocrDataUrl: string;
   /** Contrast-normalised (not binarised) image, better for vision models. */
   enhancedDataUrl: string;
+  /**
+   * Several renderings of the same leaf (different contrast / thresholding /
+   * sharpening). Reading each one and cross-checking recovers characters that
+   * a single rendering loses when the ink is faded or the letters run together.
+   */
+  ocrVariants: { label: string; dataUrl: string }[];
+  /** Renderings handed to the image-reading model, best first. */
+  visionVariants: string[];
   width: number;
   height: number;
 }
@@ -44,20 +52,58 @@ export async function preprocessImage(
   const gray = toGrayscale(image);
   const equalised = clahe(gray, width, height, opts.clipLimit);
   const denoised = median3(equalised, width, height);
+  const sharpened = unsharp(denoised, width, height, 0.8);
 
-  const enhanced = ctx.createImageData(width, height);
-  writeGray(enhanced, denoised);
-  ctx.putImageData(enhanced, 0, 0);
-  const enhancedDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+  const emit = (plane: Uint8ClampedArray, mime: string, quality?: number) => {
+    const frame = ctx.createImageData(width, height);
+    writeGray(frame, plane);
+    ctx.putImageData(frame, 0, 0);
+    return canvas.toDataURL(mime, quality);
+  };
 
-  const binary = opts.window > 0 ? adaptiveThreshold(denoised, width, height, opts.window) : denoised;
-  const binaryImage = ctx.createImageData(width, height);
-  writeGray(binaryImage, binary);
-  ctx.putImageData(binaryImage, 0, 0);
-  const ocrDataUrl = canvas.toDataURL("image/png");
+  const enhancedDataUrl = emit(denoised, "image/jpeg", 0.92);
+  const sharpDataUrl = emit(sharpened, "image/jpeg", 0.92);
 
-  return { ocrDataUrl, enhancedDataUrl, width, height };
+  const window = opts.window > 0 ? opts.window : DEFAULTS.window;
+  const ocrDataUrl = emit(adaptiveThreshold(denoised, width, height, window, 0.92), "image/png");
+  const softBinary = emit(
+    adaptiveThreshold(sharpened, width, height, Math.round(window * 1.8), 0.97),
+    "image/png",
+  );
+  const hardBinary = emit(
+    adaptiveThreshold(sharpened, width, height, Math.max(9, Math.round(window * 0.6)), 0.86),
+    "image/png",
+  );
+
+  return {
+    ocrDataUrl,
+    enhancedDataUrl,
+    ocrVariants: [
+      { label: "balanced", dataUrl: ocrDataUrl },
+      { label: "faded-ink", dataUrl: softBinary },
+      { label: "connected-strokes", dataUrl: hardBinary },
+    ],
+    visionVariants: [enhancedDataUrl, sharpDataUrl],
+    width,
+    height,
+  };
 }
+
+/** Unsharp mask — separates strokes that have run into each other. */
+function unsharp(
+  gray: Uint8ClampedArray,
+  width: number,
+  height: number,
+  amount: number,
+): Uint8ClampedArray {
+  const blurred = median3(gray, width, height);
+  const out = new Uint8ClampedArray(gray.length);
+  for (let i = 0; i < gray.length; i++) {
+    out[i] = gray[i]! + amount * (gray[i]! - blurred[i]!);
+  }
+  return out;
+}
+
 
 async function loadBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
   try {
@@ -170,6 +216,7 @@ function adaptiveThreshold(
   width: number,
   height: number,
   window: number,
+  factor = 0.92,
 ): Uint8ClampedArray {
   const integral = new Float64Array((width + 1) * (height + 1));
   for (let y = 0; y < height; y++) {
@@ -194,8 +241,9 @@ function adaptiveThreshold(
         integral[(y1 + 1) * (width + 1) + x0]! +
         integral[y0 * (width + 1) + x0]!;
       const mean = sum / area;
-      out[y * width + x] = gray[y * width + x]! < mean * 0.92 ? 0 : 255;
+      out[y * width + x] = gray[y * width + x]! < mean * factor ? 0 : 255;
     }
   }
   return out;
 }
+
