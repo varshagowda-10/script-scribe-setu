@@ -1,8 +1,74 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Volume2, Square, FileDown, Loader2 } from "lucide-react";
+import { Volume2, Square, FileDown, Loader2, PencilLine } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { exportElementToPdf } from "@/lib/pdf";
+import { submitCorrection } from "@/lib/corrections.functions";
 import type { GlossaryPair, TranslationResult } from "@/types/aksharasetu";
+
+/** Teach the system a reading; it is reused on every later manuscript. */
+function CorrectionBox() {
+  const [open, setOpen] = useState(false);
+  const [wrong, setWrong] = useState("");
+  const [correct, setCorrect] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!wrong.trim() || !correct.trim()) return;
+    setSaving(true);
+    try {
+      await submitCorrection({ data: { wrong: wrong.trim(), correct: correct.trim() } });
+      toast.success("Saved — this reading will be used from now on.");
+      setWrong("");
+      setCorrect("");
+      setOpen(false);
+    } catch {
+      toast.error("Couldn't save that correction. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open)
+    return (
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <PencilLine className="mr-2 h-4 w-4" />
+        Fix a word
+      </Button>
+    );
+
+  return (
+    <div className="w-full space-y-3 rounded-md border border-border bg-leaf/40 p-4">
+      <p className="text-sm text-muted-foreground">
+        Type the word as it was read, and the word it should be. It will be corrected automatically
+        in every manuscript from now on.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <Input
+          value={wrong}
+          onChange={(e) => setWrong(e.target.value)}
+          placeholder="As read"
+          className="w-40 font-kannada"
+        />
+        <Input
+          value={correct}
+          onChange={(e) => setCorrect(e.target.value)}
+          placeholder="Should be"
+          className="w-40 font-kannada"
+        />
+        <Button onClick={save} disabled={saving || !wrong.trim() || !correct.trim()}>
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Save
+        </Button>
+        <Button variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 
 function useSpeech() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
