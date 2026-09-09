@@ -22,4 +22,11 @@ const inputSchema = z.object({
 
 export const processManuscript = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
-  .handler(async ({ data }) => runPipeline(data));
+  .handler(async ({ data }) =>
+    runPipeline({
+      ...data,
+      ocrCandidates: data.ocrCandidates ?? [],
+      imageVariants: data.imageVariants ?? [],
+    }),
+  );
+
