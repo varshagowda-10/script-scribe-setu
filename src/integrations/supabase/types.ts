@@ -80,6 +80,33 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_corrections: {
+        Row: {
+          correct: string
+          created_at: string
+          id: number
+          updated_at: string
+          uses: number
+          wrong: string
+        }
+        Insert: {
+          correct: string
+          created_at?: string
+          id?: number
+          updated_at?: string
+          uses?: number
+          wrong: string
+        }
+        Update: {
+          correct?: string
+          created_at?: string
+          id?: number
+          updated_at?: string
+          uses?: number
+          wrong?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
