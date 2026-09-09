@@ -285,7 +285,9 @@ export function ResultView({ result, imageUrl }: Props) {
           )}
           Download PDF
         </Button>
+        <CorrectionBox />
       </div>
+
     </div>
   );
 }
