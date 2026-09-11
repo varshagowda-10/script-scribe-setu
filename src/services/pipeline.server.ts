@@ -46,12 +46,6 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     }`,
   );
 
-  // One rendering only: extra image passes pushed the request past its time
-  // limit, which left the page stuck on "Translating…".
-  const images = [input.imageDataUrl, ...(input.imageVariants ?? [])].filter(Boolean).slice(0, 1);
-  const startedAt = Date.now();
-  const BUDGET_MS = 60_000;
-
   const weak =
     tesseractChars < MIN_CHARS ||
     input.ocrConfidence === null ||
@@ -59,11 +53,12 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
 
   let workingText = tesseractText;
   let engine: string = "tesseract-kan";
-  let visionUsed = false;
+  const visionUsed = weak;
 
-  // Independent readings of the same leaf: each pre-processed rendering read by
-  // Tesseract, plus one image-grounded reading per rendering when the scan is
-  // faded or the characters run together.
+  // Keep all local OCR readings as evidence. The former implementation then
+  // made separate vision, consensus, and translation calls; difficult leaves
+  // could therefore remain on "Translating…" for several minutes. The single
+  // translation call below now sees the image and performs that cross-check.
   const passes: { label: string; text: string }[] = [];
   if (tesseractText.trim()) passes.push({ label: "scan-balanced", text: tesseractText });
   for (const c of input.ocrCandidates ?? []) {
@@ -71,42 +66,12 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     if (kannadaCharCount(cleaned) >= 3) passes.push({ label: `scan-${c.label}`, text: cleaned });
   }
 
-  if (weak) {
-    for (const [i, image] of images.entries()) {
-      try {
-        const visionText = await visionReadKannada(image, tesseractText);
-        if (kannadaCharCount(visionText) >= 3) {
-          passes.push({ label: `image-read-${i + 1}`, text: cleanOcrText(visionText) });
-          visionUsed = true;
-        }
-      } catch (err) {
-        console.error("[AksharaSetu] Vision OCR unavailable:", err);
-        break;
-      }
-    }
-  }
-
-  if (passes.length > 1 && Date.now() - startedAt < BUDGET_MS) {
-    try {
-      const merged = await consensusRead(images, passes);
-      if (kannadaCharCount(merged) >= Math.max(3, Math.round(tesseractChars * 0.6))) {
-        workingText = cleanOcrText(merged);
-        engine = visionUsed ? "multi-pass + image-grounded" : "multi-pass scan";
-      }
-    } catch (err) {
-      console.error("[AksharaSetu] Consensus reading unavailable:", err);
-    }
-  }
-
-  if (workingText === tesseractText) {
-    // No consensus available — take the single richest pass.
-    const best = passes
-      .slice()
-      .sort((a, b) => kannadaCharCount(b.text) - kannadaCharCount(a.text))[0];
-    if (best && kannadaCharCount(best.text) > tesseractChars) {
-      workingText = best.text;
-      engine = best.label.startsWith("image") ? "image-grounded" : "multi-pass scan";
-    }
+  const best = passes
+    .slice()
+    .sort((a, b) => kannadaCharCount(b.text) - kannadaCharCount(a.text))[0];
+  if (best && kannadaCharCount(best.text) > tesseractChars) {
+    workingText = best.text;
+    engine = "multi-pass scan";
   }
 
   // Reader-taught corrections are applied before any matching or translation.
@@ -129,6 +94,7 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
       cleanedOcr: report.cleanedText,
       evidence,
       datasetSize: report.stats.datasetEntries,
+      imageDataUrl: weak ? input.imageDataUrl : undefined,
     });
   } catch (err) {
     if (!(err instanceof AIUnavailableError)) throw err;
