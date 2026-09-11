@@ -7,9 +7,6 @@
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 /** Fast multimodal model — the previous model routinely outran the request timeout. */
 const MODEL = "google/gemini-3.8-flash";
-/** Hard ceiling per AI call so one slow stage can never hang the whole request. */
-const CALL_TIMEOUT_MS = 45_000;
-
 export class AIUnavailableError extends Error {}
 
 interface ChatMessage {
@@ -21,18 +18,14 @@ async function chat(messages: ChatMessage[]): Promise<string> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new AIUnavailableError("LOVABLE_API_KEY is not configured");
 
-  let res: Response;
-  try {
-    res = await fetch(GATEWAY, {
-      method: "POST",
-      headers: { "Lovable-API-Key": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: MODEL, messages, temperature: 0, top_p: 1 }),
-      signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-    });
-  } catch (err) {
-    console.error("[AksharaSetu] AI request failed/timed out:", err);
-    throw new AIUnavailableError("The AI service took too long to respond.");
-  }
+  const res = await fetch(GATEWAY, {
+    method: "POST",
+    headers: { "Lovable-API-Key": key, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODEL, messages, temperature: 0, top_p: 1, stream: true }),
+  }).catch((err: unknown) => {
+    console.error("[AksharaSetu] AI request failed:", err);
+    throw new AIUnavailableError("The AI service could not be reached.");
+  });
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -40,13 +33,35 @@ async function chat(messages: ChatMessage[]): Promise<string> {
     if (res.status === 429) throw new AIUnavailableError("AI service is rate limited right now.");
     if (res.status === 402)
       throw new AIUnavailableError("AI credits are exhausted for this workspace.");
+    if (res.status === 403)
+      throw new AIUnavailableError("AI access is currently blocked for this workspace.");
     throw new AIUnavailableError("The AI service could not be reached.");
   }
 
-  const json = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = json.choices?.[0]?.message?.content;
+  if (!res.body) throw new AIUnavailableError("Empty AI response");
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let pending = "";
+  let content = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    pending += decoder.decode(value, { stream: !done });
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+    for (const line of lines) {
+      const data = line.trim().replace(/^data:\s*/, "");
+      if (!data || data === "[DONE]") continue;
+      try {
+        const event = JSON.parse(data) as {
+          choices?: { delta?: { content?: string }; message?: { content?: string } }[];
+        };
+        content += event.choices?.[0]?.delta?.content ?? event.choices?.[0]?.message?.content ?? "";
+      } catch {
+        // A partial SSE event remains in `pending`; non-JSON keepalive lines are ignored.
+      }
+    }
+    if (done) break;
+  }
   if (!content || !content.trim()) throw new AIUnavailableError("Empty AI response");
   return content;
 }
@@ -144,6 +159,7 @@ export async function reconstructAndTranslate(params: {
   cleanedOcr: string;
   evidence: string;
   datasetSize: number;
+  imageDataUrl?: string;
 }): Promise<AITranslationOutput> {
   const content = await chat([
     {
@@ -165,7 +181,15 @@ export async function reconstructAndTranslate(params: {
     },
     {
       role: "user",
-      content: `RAW OCR TEXT:\n${params.cleanedOcr || "(no text recovered)"}\n\nDATASET CANDIDATES (lexicon of ${params.datasetSize} Hale->Hosa entries):\n${params.evidence || "(none)"}`,
+      content: params.imageDataUrl
+        ? [
+            {
+              type: "text",
+              text: `Read the attached manuscript itself first, using the OCR and lexicon only as supporting evidence. Resolve faint and connected characters from visible strokes; never invent missing text.\n\nRAW OCR TEXT:\n${params.cleanedOcr || "(no text recovered)"}\n\nDATASET CANDIDATES (lexicon of ${params.datasetSize} Hale->Hosa entries):\n${params.evidence || "(none)"}`,
+            },
+            { type: "image_url", image_url: { url: params.imageDataUrl } },
+          ]
+        : `RAW OCR TEXT:\n${params.cleanedOcr || "(no text recovered)"}\n\nDATASET CANDIDATES (lexicon of ${params.datasetSize} Hale->Hosa entries):\n${params.evidence || "(none)"}`,
     },
   ]);
   const parsed = extractJson<AITranslationOutput>(content);
