@@ -5,7 +5,10 @@
  * Deterministic settings (temperature 0) so the same input yields the same text.
  */
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-pro";
+/** Fast multimodal model — the previous model routinely outran the request timeout. */
+const MODEL = "google/gemini-3.8-flash";
+/** Hard ceiling per AI call so one slow stage can never hang the whole request. */
+const CALL_TIMEOUT_MS = 45_000;
 
 export class AIUnavailableError extends Error {}
 
@@ -18,11 +21,18 @@ async function chat(messages: ChatMessage[]): Promise<string> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new AIUnavailableError("LOVABLE_API_KEY is not configured");
 
-  const res = await fetch(GATEWAY, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: MODEL, messages, temperature: 0, top_p: 1 }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(GATEWAY, {
+      method: "POST",
+      headers: { "Lovable-API-Key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: MODEL, messages, temperature: 0, top_p: 1 }),
+      signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+    });
+  } catch (err) {
+    console.error("[AksharaSetu] AI request failed/timed out:", err);
+    throw new AIUnavailableError("The AI service took too long to respond.");
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
