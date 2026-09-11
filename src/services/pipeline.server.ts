@@ -46,7 +46,11 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
     }`,
   );
 
-  const images = [input.imageDataUrl, ...(input.imageVariants ?? [])].filter(Boolean).slice(0, 2);
+  // One rendering only: extra image passes pushed the request past its time
+  // limit, which left the page stuck on "Translating…".
+  const images = [input.imageDataUrl, ...(input.imageVariants ?? [])].filter(Boolean).slice(0, 1);
+  const startedAt = Date.now();
+  const BUDGET_MS = 60_000;
 
   const weak =
     tesseractChars < MIN_CHARS ||
