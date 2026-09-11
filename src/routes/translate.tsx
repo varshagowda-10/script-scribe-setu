@@ -126,16 +126,29 @@ function TranslatePage() {
 
       setStage("Translating…");
       setProgress(0.72);
-      const res = await processManuscript({
-        data: {
-          imageHash,
-          imageDataUrl: processed.enhancedDataUrl,
-          ocrText,
-          ocrConfidence,
-          ocrCandidates: candidates,
-          imageVariants: processed.visionVariants.slice(1, 2),
-        },
-      });
+      const res = await Promise.race([
+        processManuscript({
+          data: {
+            imageHash,
+            imageDataUrl: processed.enhancedDataUrl,
+            ocrText,
+            ocrConfidence,
+            ocrCandidates: candidates,
+            imageVariants: [],
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  "This manuscript is taking too long to translate. Please try again, or use a smaller/clearer photo.",
+                ),
+              ),
+            120_000,
+          ),
+        ),
+      ]);
 
 
       setProgress(1);
