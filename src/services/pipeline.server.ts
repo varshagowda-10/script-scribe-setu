@@ -6,8 +6,6 @@
 import { readCached, writeCached } from "./cache/cache.server";
 import { reconstruct, buildEvidence } from "./reconstruction/reconstruct.server";
 import {
-  visionReadKannada,
-  consensusRead,
   reconstructAndTranslate,
   AIUnavailableError,
 } from "./ai/gemini.server";
@@ -94,7 +92,7 @@ export async function runPipeline(input: PipelineInput): Promise<TranslationResu
       cleanedOcr: report.cleanedText,
       evidence,
       datasetSize: report.stats.datasetEntries,
-      imageDataUrl: weak ? input.imageDataUrl : undefined,
+      ...(weak ? { imageDataUrl: input.imageDataUrl } : {}),
     });
   } catch (err) {
     if (!(err instanceof AIUnavailableError)) throw err;
