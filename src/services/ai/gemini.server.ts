@@ -12,7 +12,7 @@ const MODEL = "google/gemini-3.8-flash";
  * gateway key, so the same prompts go to Google's OpenAI-compatible endpoint
  * with the user's own free Gemini API key instead. Identical output format.
  */
-const GOOGLE_COMPAT_ENDPOINT = "https://generativelanguage.googleapis.com/openai/v1/chat/completions";
+const GOOGLE_COMPAT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const GOOGLE_COMPAT_MODEL = process.env["GEMINI_MODEL"] || "gemini-2.5-flash";
 
 export class AIUnavailableError extends Error {}
