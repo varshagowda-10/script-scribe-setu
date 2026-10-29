@@ -171,5 +171,6 @@ If the CSV has no header row, the app falls back to the first two columns.
 
 - **`Missing Supabase environment variable(s)`** — Make sure every variable listed in the table above is set in `.env` and that the dev server was restarted after editing it.
 - **Translation shows only OCR text with a note that AI was unavailable** — When running locally, the AI stage needs `GEMINI_API_KEY` in `.env` (free key at <https://aistudio.google.com/apikey>). Add it and restart `npm run dev`. Inside Lovable no key is needed.
+- **`Port 8080 is already in use`** — Another program is using port 8080. Start on a different port with `npm run dev -- --port 3000` and open <http://localhost:3000>.
 - **OCR returns no Kannada text** — Use a clearer, evenly-lit photograph. The pipeline works best with high-contrast manuscript images.
 - **Admin CSV upload fails** — Confirm both `ADMIN_PASSPHRASE` and `SUPABASE_SERVICE_ROLE_KEY` are set, the CSV has at least 10 valid rows, and the Supabase `lexicon_entries` table exists.
