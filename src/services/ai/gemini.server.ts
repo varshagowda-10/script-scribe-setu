@@ -7,6 +7,14 @@
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 /** Fast multimodal model — the previous model routinely outran the request timeout. */
 const MODEL = "google/gemini-3.8-flash";
+/**
+ * Outside Lovable (local `npm run dev`, VS Code, your own hosting) there is no
+ * gateway key, so the same prompts go to Google's OpenAI-compatible endpoint
+ * with the user's own free Gemini API key instead. Identical output format.
+ */
+const GOOGLE_COMPAT_ENDPOINT = "https://generativelanguage.googleapis.com/openai/v1/chat/completions";
+const GOOGLE_COMPAT_MODEL = process.env["GEMINI_MODEL"] || "gemini-2.5-flash";
+
 export class AIUnavailableError extends Error {}
 
 interface ChatMessage {
@@ -15,13 +23,25 @@ interface ChatMessage {
 }
 
 async function chat(messages: ChatMessage[]): Promise<string> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new AIUnavailableError("LOVABLE_API_KEY is not configured");
+  const gatewayKey = process.env["LOVABLE_API_KEY"];
+  const geminiKey = process.env["GEMINI_API_KEY"];
+  if (!gatewayKey && !geminiKey) {
+    throw new AIUnavailableError(
+      "No AI key configured. Inside Lovable this is automatic; when running locally, add GEMINI_API_KEY to .env (free key: aistudio.google.com/apikey).",
+    );
+  }
 
-  const res = await fetch(GATEWAY, {
+  const useGateway = Boolean(gatewayKey);
+  const endpoint = useGateway ? GATEWAY : GOOGLE_COMPAT_ENDPOINT;
+  const model = useGateway ? MODEL : GOOGLE_COMPAT_MODEL;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (useGateway) headers["Lovable-API-Key"] = gatewayKey!;
+  else headers["Authorization"] = `Bearer ${geminiKey}`;
+
+  const res = await fetch(endpoint, {
     method: "POST",
-    headers: { "Lovable-API-Key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: MODEL, messages, temperature: 0, top_p: 1, stream: true }),
+    headers,
+    body: JSON.stringify({ model, messages, temperature: 0, top_p: 1, stream: true }),
   }).catch((err: unknown) => {
     console.error("[AksharaSetu] AI request failed:", err);
     throw new AIUnavailableError("The AI service could not be reached.");
