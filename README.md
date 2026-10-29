@@ -4,6 +4,33 @@ Read Old Kannada palm-leaf manuscripts in modern Kannada (Hosa Kannada) and Engl
 
 AksharaSetu is a final-year academic project built as a TanStack Start web app. It takes a photograph of a Hale Kannada manuscript leaf, runs OCR and multi-pass image reading, matches the text against a Hale → Hosa Kannada lexicon, and returns the original reading, modern Kannada reconstruction, English translation, glossary, audio, and a downloadable PDF.
 
+## Quick start in VS Code (5 steps)
+
+1. Unzip the project and open the folder in VS Code (**File → Open Folder**).
+2. Open a terminal in VS Code (**Terminal → New Terminal**) and run:
+
+   ```sh
+   npm install
+   ```
+
+3. Add a free Gemini API key to the `.env` file so AI reconstruction and English translation work locally (the `.env` shipped with this project already has the database settings filled in — this is the only line to add):
+
+   ```env
+   GEMINI_API_KEY=your-key-here
+   ```
+
+   Get a free key at <https://aistudio.google.com/apikey>, then save the file.
+
+4. Start the app:
+
+   ```sh
+   npm run dev
+   ```
+
+5. Open the printed URL (usually <http://localhost:8080>) and upload a manuscript photo on **Translate**.
+
+Everything else works exactly as in Lovable: the database, saved results cache and the 19,975-word lexicon are the same remote services, and `.vscode/` gives you ESLint + Prettier + Tailwind extension suggestions and an F5 debug configuration.
+
 ## What you need installed
 
 - **Node.js** 20 or newer (LTS recommended)
@@ -38,6 +65,8 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 | `VITE_SUPABASE_PROJECT_ID` | Supabase project ID used by the browser client. |
 | `SUPABASE_URL` | Same Supabase URL, read server-side. |
 | `SUPABASE_PUBLISHABLE_KEY` | Same publishable key, read server-side. |
+| `GEMINI_API_KEY` | Needed only when running **outside Lovable** (VS Code / your own machine): a free Google Gemini API key so AI reconstruction and English translation work. Inside Lovable this is automatic. |
+| `GEMINI_MODEL` | Optional. Gemini model used when running locally (default `gemini-2.5-flash`). |
 | `ADMIN_PASSPHRASE` | Passphrase required to open `/admin` and upload a new Hale → Hosa CSV. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key used only for the admin CSV reindex path. |
 
@@ -141,5 +170,6 @@ If the CSV has no header row, the app falls back to the first two columns.
 ## Troubleshooting
 
 - **`Missing Supabase environment variable(s)`** — Make sure every variable listed in the table above is set in `.env` and that the dev server was restarted after editing it.
+- **Translation shows only OCR text with a note that AI was unavailable** — When running locally, the AI stage needs `GEMINI_API_KEY` in `.env` (free key at <https://aistudio.google.com/apikey>). Add it and restart `npm run dev`. Inside Lovable no key is needed.
 - **OCR returns no Kannada text** — Use a clearer, evenly-lit photograph. The pipeline works best with high-contrast manuscript images.
 - **Admin CSV upload fails** — Confirm both `ADMIN_PASSPHRASE` and `SUPABASE_SERVICE_ROLE_KEY` are set, the CSV has at least 10 valid rows, and the Supabase `lexicon_entries` table exists.
